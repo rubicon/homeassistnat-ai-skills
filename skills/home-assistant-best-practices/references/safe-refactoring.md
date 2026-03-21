@@ -27,6 +27,7 @@ Search every component type that references entity IDs. Do not limit searches to
 | Dashboards | Search dashboard configs for the entity ID via the HA API or grep `.storage/lovelace*`, `ui-lovelace.yaml` |
 | Scripts | grep `scripts.yaml` |
 | Scenes | grep `scenes.yaml` |
+| Config-Entry-based groups | `GET /api/config/config_entries/entry?type=config&domain=group` — members in `options.entities`; `ha_rename_entity` does NOT update these automatically (→ see Config-Entry-Groups section) |
 | Other | Check AppDaemon apps, Node-RED flows, Pyscript scripts, or any custom integration that references entity IDs |
 
 Record every location found. This list becomes your update checklist for Step 4.
@@ -95,3 +96,78 @@ When converting `device_id` triggers to `entity_id` triggers, or replacing `wait
 
 **Automation callers (Step 2):**
 Search for scripts or other automations that call the automation you are restructuring via `automation.trigger` or `automation.turn_on`. Renaming or splitting an automation changes its entity_id and breaks these callers.
+
+---
+
+## Config-Entry-Groups
+
+When renaming entities that are members of a HA **group** created via the UI (Config-Entry-based group, platform: `group`):
+
+**`ha_rename_entity` does NOT update group members automatically.**
+
+Group member entity IDs are stored in `options.entities` of the group's Config Entry — not in the entity registry. A registry rename leaves the group referencing the old (now non-existent) entity ID, silently breaking it.
+
+**Detection (Step 2):**
+List all Config-Entry-based groups to get their `entry_id` values:
+
+```http
+GET /api/config/config_entries/entry?type=config&domain=group
+```
+
+> **Note:** Some HA MCP integrations may not expose all fields from the Config Entries API
+> response — in particular, `options.entities` may be absent. Use the REST endpoint above
+> to confirm current group members directly.
+
+To inspect current members of a specific group, initiate an Options Flow and read
+`suggested_value` in the returned `data_schema.entities` field:
+
+```http
+POST /api/config/config_entries/options/flow
+{"handler": "<group_config_entry_id>"}
+```
+
+> **One active flow per Config Entry:** HA allows only one active Options Flow per Config
+> Entry at a time. If you open a detection flow to read current values, abandon or complete
+> it before initiating the fix flow. To abandon:
+>
+> ```http
+> DELETE /api/config/config_entries/options/flow/<flow_id>
+> ```
+
+**Fix (Step 4):**
+After the registry rename, update group membership via the Options Flow.
+
+1. Initiate a new fix flow (the detection flow from above must be abandoned or completed
+   first). Read the current option values from `suggested_value`. Note the `flow_id`:
+
+```http
+POST /api/config/config_entries/options/flow
+{"handler": "<group_config_entry_id>"}
+```
+
+2. Submit the updated member list, preserving existing `hide_members` value.
+   Include `all` only if it was present in the step 1 `data_schema` response — only
+   `light`, `switch`, and `binary_sensor` groups support it. For all other group types
+   (fan, lock, media_player, sensor, etc.) omit `all` entirely:
+
+```http
+POST /api/config/config_entries/options/flow/<flow_id>
+{"entities": ["new.entity_id_1", "new.entity_id_2"], "hide_members": <suggested_value>}
+```
+
+   If the group type supports `all`, add it explicitly:
+
+```http
+POST /api/config/config_entries/options/flow/<flow_id>
+{"entities": ["new.entity_id_1", "new.entity_id_2"], "hide_members": <suggested_value>, "all": <suggested_value>}
+```
+
+> **Safe rule:** Always derive field presence from the step 1 `data_schema` response —
+> never hardcode fields. Submitting unknown fields may result in a validation error.
+
+**Verify (Step 5):**
+Re-initiate the Options Flow for the group's `entry_id` and confirm that `suggested_value`
+for `entities` contains only the updated entity IDs. The REST endpoint
+`GET /api/config/config_entries/entry` does not expose `options.entities` — the Options
+Flow is the only way to read current group members.
+
