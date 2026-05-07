@@ -9,7 +9,7 @@ This repository provides an Agent Skill for Home Assistant, following the open [
 
 ## Included Skill
 
-**[home-assistant-best-practices](skills/home-assistant-best-practices/):** Native HA constructs over templates, helper selection, automation modes, Zigbee button patterns, device control best practices, dashboard configuration, and safe refactoring.
+**[home-assistant-best-practices](skills/home-assistant-best-practices/):** Native HA constructs over templates, helper selection, automation modes, Zigbee button patterns, device control best practices, YAML-only integration management, dashboard configuration, and safe refactoring.
 
 ## Installation
 
@@ -40,7 +40,9 @@ Run `/reload-plugins` or restart Claude Code for the skill to take effect.
 
 1. Download or clone this repository
 2. Zip the skill folder: `cd skills && zip -r home-assistant-best-practices.zip home-assistant-best-practices/`
-3. **Settings → Capabilities → Skills → Upload skill** → select the `.zip` file
+3. Upload to:
+   - **Claude Desktop:** Customize (left sidebar) → Skills → + → Create skill
+   - **claude.ai:** [claude.ai/customize/skills](https://claude.ai/customize/skills) → Upload
 
 ## Skill Contents
 
