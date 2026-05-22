@@ -61,6 +61,7 @@ The `home-assistant-best-practices` skill includes:
 | `references/dashboard-cards.md` | Card type lookup and card-specific documentation |
 | `references/domain-docs.md` | Integration and domain documentation for service calls, entity attributes |
 | `references/examples.yaml` | Compound examples combining multiple best practices |
+| `references/appdaemon.md` | AppDaemon apps: when to use vs. native HA, app structure, service calls, scheduling, error handling, safe refactoring impact |
 
 ## Contributing
 

@@ -1,25 +1,26 @@
 ---
 name: home-assistant-best-practices
 description: >
-  Best practices for HA automations, helpers, scripts, device controls, and dashboards.
+  Best practices for HA automations, helpers, scripts, controls, and dashboards.
 
   TRIGGER THIS SKILL WHEN:
-  - Creating/editing automations, scripts, scenes, or dashboards
+  - Creating or editing automations, scripts, scenes, or dashboards
   - Choosing between template sensors and built-in helpers
-  - Writing or restructuring triggers, conditions, or automation modes
-  - Setting up Zigbee button/remote automations (ZHA or Zigbee2MQTT)
+  - Restructuring triggers, conditions, or automation modes
+  - Setting up Zigbee button/remote automations
   - Renaming entities or migrating device_id to entity_id
-  - Configuring dashboard cards or picking helpers to feed them
-  - Looking up card types or domain-specific documentation
+  - Configuring dashboard cards or selecting helpers
+  - Looking up card types or domain docs
+  - Writing or reviewing AppDaemon apps
 
   SYMPTOMS:
-  - Agent uses Jinja2 templates where native conditions/triggers/helpers exist
+  - Agent uses Jinja2 templates where native options exist
   - Agent uses device_id instead of entity_id
-  - Agent modifies entity IDs without checking consumers
-  - Agent chooses wrong automation mode (e.g., single for motion lights)
-  - Agent hard-codes values or picks raw sensor over derived helper
-  - Agent edits `.storage/` files, writes raw YAML, or generates YAML snippets
-  - Agent tells user to edit configuration.yaml for UI-configured integrations
+  - Agent changes entity IDs without checking consumers
+  - Wrong automation mode
+  - Agent hard-codes values or uses raw sensor over helper
+  - Agent edits .storage, writes YAML, or generates YAML snippets
+  - Agent tells user to edit configuration.yaml for UI integrations
 metadata:
   version: 6
 ---
@@ -88,7 +89,7 @@ See `references/device-control.md#zigbee-buttonremote-patterns`.
 ## Critical Anti-Patterns
 
 | Anti-pattern | Use instead | Why | Reference |
-|---|---|---|---|
+|--------------|-------------|-----|-----------|
 | `condition: template` with `float > 25` | `condition: numeric_state` | Validated at load, not runtime | `references/automation-patterns.md#native-conditions` |
 | `wait_template: "{{ is_state(...) }}"` | `wait_for_trigger` with state trigger | Event-driven, not polling; waits for *change* (see `references/safe-refactoring.md#trigger-restructuring` for semantic differences) | `references/automation-patterns.md#wait-actions` |
 | `device_id` in triggers | `entity_id` (or `device_ieee` for ZHA) | device_id breaks on re-add | `references/device-control.md#entity-id-vs-device-id` |
@@ -108,6 +109,10 @@ See `references/device-control.md#zigbee-buttonremote-patterns`.
 | `vacuum.send_command` with vendor room IDs | `vacuum.clean_area` with HA `area_id` (if segments are mapped) | Uses native HA areas, works across integrations — but requires segment-to-area mapping in entity settings first | `references/device-control.md#vacuum-control` |
 | Using `color_temp` (mireds) in light service calls | Use `color_temp_kelvin` | The `color_temp` parameter was removed in 2026.3; only Kelvin is supported | `references/device-control.md#lights` |
 | Person/Device Tracker `entered_home`/`left_home` device triggers or `is_home`/`is_not_home` conditions | `state` trigger `to: home` / `to: not_home`, or `state` condition | These were removed in 2026.5 — state triggers and conditions are the correct replacements | `references/automation-patterns.md#presence-and-person-triggers-and-conditions-removed-in-20265` |
+| Registering callbacks or calling `self.turn_on()`/`self.get_state()` in `__init__()` | Register everything in `initialize()` | Plugin connection not established during `__init__` — calls fail silently | `references/appdaemon.md#app-structure-and-lifecycle` |
+| Calling `run_in` on repeated triggers without cancelling the previous handle | `cancel_timer(self._off_handle)` before each new `run_in` | Every trigger stacks an independent timer — devices toggle unpredictably | `references/appdaemon.md#scheduling-and-timers` |
+| Storing persistent state in instance variables | Use HA `input_number`, `input_boolean`, or `input_text` helpers | Instance variables reset on app reload or daemon restart | `references/appdaemon.md#state-management-and-inter-app-communication` |
+| Hardcoding entity IDs inside the class body | Pass entity IDs via `self.args` in `apps.yaml` | Hardcoded IDs prevent reuse and require code edits per installation | `references/appdaemon.md#appsyaml-configuration` |
 
 ---
 
@@ -127,3 +132,4 @@ Read these when you need detailed information:
 | `references/dashboard-cards.md` | Looking up available card types or fetching card-specific documentation | — |
 | `references/domain-docs.md` | Looking up integration or domain documentation for service calls, entity attributes, or configuration | — |
 | `references/examples.yaml` | Need compound examples combining multiple best practices | — |
+| `references/appdaemon.md` | AppDaemon apps: when to use vs. native HA, app structure, service calls, scheduling, error handling, safe refactoring impact | — |
